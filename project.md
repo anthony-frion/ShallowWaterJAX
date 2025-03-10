@@ -8,7 +8,8 @@ We consider a simulator with time-varying system state $x_t \in \mathbb{R}^K$ an
 
 $\textbf{Data assimilation.}$ We seek for such an initial state for the simulator/emulator that predictions would match to available observation.
 
-![image](https://github.com/user-attachments/assets/b373aae8-3e04-48cc-aac3-b3dd017cd909)
+![Uploading image.png…]()
+
 
 
 ## Background information : 
