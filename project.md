@@ -8,6 +8,10 @@ Ali Bekar
 We consider a simulator with time-varying system state $x_t \in \mathbb{R}^K$ and constant parameters $\theta \in \mathbb{R}^P$. The simulators is defined by numerical integration of tendencies $f$ that are functions of current state $x_t$, resulting a deterministic update $\mathcal{M}$ \\
 
 $\textbf{Data assimilation.}$ We seek for such an initial state for the simulator/emulator that predictions would match to available observation.
+
+
+![image](https://github.com/user-attachments/assets/c0de15f9-84c3-47fb-9063-73b5a2284a33)
+
 ## Background information : 
 *Provide any information (GitHub repository, reference to scientific paper) useful to describe the starting point of your project*  
 
