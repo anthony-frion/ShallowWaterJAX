@@ -8,8 +8,9 @@ We consider a simulator with time-varying system state $x_t \in \mathbb{R}^K$ an
 
 $\textbf{Data assimilation.}$ We seek for such an initial state for the simulator/emulator that predictions would match to available observation.
 
-
-![image](https://github.com/user-attachments/assets/c0de15f9-84c3-47fb-9063-73b5a2284a33)
+\begin{equation}
+    \mathcal{L}_{DA}(\mathbf{x}_0; \tsr{\lambda}) = \frac{1}{N_1} (\tsr{x}_0 - \tsr{x}_b)^2 + \frac{1}{N2}\sum{t=t_1}^{t_2} ( \tsr{y}t - \mathcal{H}(\hat{\mathcal{M}}^t{\tsr{\theta}}(\tsr{x}_0; \tsr{\lambda})) )^2
+\end{equation}
 
 ## Background information : 
 *Provide any information (GitHub repository, reference to scientific paper) useful to describe the starting point of your project*  
