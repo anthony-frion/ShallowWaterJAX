@@ -8,6 +8,11 @@ Ali Bekar
 We consider a simulator with time-varying system state $x_t \in \mathbb{R}^K$ and constant parameters $\theta \in \mathbb{R}^P$. The simulators is defined by numerical integration of tendencies $f$ that are functions of current state $x_t$, resulting a deterministic update $\mathcal{M}$ \\
 
 $\textbf{Data assimilation.}$ We seek for such an initial state for the simulator/emulator that predictions would match to available observation.
+
+\begin{equation}
+    \mathcal{L}_{DA}(\mathbf{x}_0; \tsr{\lambda}) = \frac{1}{N_1} (\tsr{x}_0 - \tsr{x}_b)^2 + \frac{1}{N_2}\sum_{t=t_1}^{t_2} ( \tsr{y}_t - \mathcal{H}(\hat{\mathcal{M}}^t_{\tsr{\theta}}(\tsr{x}_0; \tsr{\lambda})) )^2
+\end{equation}
+
 ## Background information : 
 *Provide any information (GitHub repository, reference to scientific paper) useful to describe the starting point of your project*  
 
