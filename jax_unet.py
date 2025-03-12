@@ -19,6 +19,15 @@ def load_model(model, filename="my_checkpoint.pth.tar", device="cpu"):
         # print("=> Loading model:", checkpoint)
         print("+++++++++++++++++++ LOADING trained model ++++++++++++++++++++++++++")
         model.load_state_dict(checkpoint["model_state_dict"])
+        # Print parameter counts for each layer
+        print("=== PyTorch Model Parameter Counts ===")
+        total_params = 0
+        for name, param in model.named_parameters():
+            param_count = param.numel()
+            total_params += param_count
+            print(f"{name}: {param_count:,} parameters")
+        print(f"Total parameters: {total_params:,}")
+        print("=====================================")
         return model
 
 
@@ -232,6 +241,93 @@ class unet(nnx.Module):
             rngs=rngs,
         )
 
+
+    def total_params(self):
+        """Calculate the total number of parameters in the model"""
+        total = 0
+        
+        # Count dynamics parameters
+        total += self.dynamics.kernel.size + self.dynamics.bias.size
+        
+        # Count statics parameters
+        total += self.statics.kernel.size + self.statics.bias.size
+        
+        # Count encoder parameters
+        for layer in self.encoder:
+            total += layer.conv1.kernel.size + layer.conv1.bias.size
+            total += layer.conv2.kernel.size + layer.conv2.bias.size
+            total += layer.norm1.scale.size + layer.norm1.bias.size
+            total += layer.norm2.scale.size + layer.norm2.bias.size
+        
+        # Count up (ConvTranspose) parameters
+        for layer in self.up:
+            total += layer.kernel.size + layer.bias.size
+        
+        # Count decoder parameters
+        for layer in self.decoder:
+            total += layer.conv1.kernel.size + layer.conv1.bias.size
+            total += layer.conv2.kernel.size + layer.conv2.bias.size
+            total += layer.norm1.scale.size + layer.norm1.bias.size
+            total += layer.norm2.scale.size + layer.norm2.bias.size
+        
+        # Count output parameters
+        total += self.output.kernel.size + self.output.bias.size
+        
+        return total
+    
+
+    def summary(self):
+        """Print a summary of the model's architecture"""
+        print("======== JAX UNET Model Summary ========")
+        
+        # Input layers
+        dyn_params = self.dynamics.kernel.size + self.dynamics.bias.size
+        print(f"dynamics: Conv2D with {dyn_params} parameters")
+        print(f"  - kernel: {self.dynamics.kernel.shape}")
+        print(f"  - bias: {self.dynamics.bias.shape}")
+        
+        stat_params = self.statics.kernel.size + self.statics.bias.size
+        print(f"statics: Conv2D with {stat_params} parameters")
+        print(f"  - kernel: {self.statics.kernel.shape}")
+        print(f"  - bias: {self.statics.bias.shape}")
+        
+        # Encoder blocks
+        for i, enc in enumerate(self.encoder):
+            params = (enc.conv1.kernel.size + enc.conv1.bias.size +
+                    enc.conv2.kernel.size + enc.conv2.bias.size +
+                    enc.norm1.scale.size + enc.norm1.bias.size +
+                    enc.norm2.scale.size + enc.norm2.bias.size)
+            print(f"encoder[{i}]: DoubleConv2D with {params} parameters")
+            print(f"  - conv1 kernel: {enc.conv1.kernel.shape}")
+            print(f"  - conv2 kernel: {enc.conv2.kernel.shape}")
+        
+        # Up-sampling blocks
+        for i, up_layer in enumerate(self.up):
+            params = up_layer.kernel.size + up_layer.bias.size
+            print(f"up[{i}]: ConvTranspose with {params} parameters")
+            print(f"  - kernel: {up_layer.kernel.shape}")
+            print(f"  - bias: {up_layer.bias.shape}")
+        
+        # Decoder blocks
+        for i, dec in enumerate(self.decoder):
+            params = (dec.conv1.kernel.size + dec.conv1.bias.size +
+                    dec.conv2.kernel.size + dec.conv2.bias.size +
+                    dec.norm1.scale.size + dec.norm1.bias.size +
+                    dec.norm2.scale.size + dec.norm2.bias.size)
+            print(f"decoder[{i}]: DoubleConv2D with {params} parameters")
+            print(f"  - conv1 kernel: {dec.conv1.kernel.shape}")
+            print(f"  - conv2 kernel: {dec.conv2.kernel.shape}")
+        
+        # Output layer
+        out_params = self.output.kernel.size + self.output.bias.size
+        print(f"output: Conv2D with {out_params} parameters")
+        print(f"  - kernel: {self.output.kernel.shape}")
+        print(f"  - bias: {self.output.bias.shape}")
+        
+        print(f"Total parameters: {self.total_params()}")
+        print("=======================================")
+
+
     def __call__(self, x, **kwargs):
         H = kwargs["H"]
         mask = kwargs["mask"]
@@ -273,7 +369,6 @@ class unet(nnx.Module):
             x = jnp.concatenate([x, skip_connections[i]], axis=-1)
             x = self.decoder[i](x)
 
-        # Output part remains the same from original code
         outputs = self.output(x)
         return outputs
 
@@ -296,6 +391,9 @@ class unet(nnx.Module):
         model = load_model(model, filename).to(DEVICE)
         print(model)
         checkpoint = get_checkpoint(filename)
+        # Print total parameters of the PyTorch model
+        total_params = sum(p.numel() for p in model.parameters())
+        print(f"PyTorch model total parameters: {total_params}")
         model_state_dict = checkpoint["model_state_dict"]
 
         # Load encoder weights
@@ -307,7 +405,6 @@ class unet(nnx.Module):
 
         # Load decoder weights
         for i in range(self.num_layers - 1):
-            # In PyTorch, decoder layers are typically named in reverse order
             torch_prefix = f"decoder.{i}."
             self.decoder[i] = load_doubleconv_weights(
                 self.decoder[i], model_state_dict, torch_prefix
@@ -390,6 +487,8 @@ def test_unet():
 
     # Pass data through model
     output = model(x, H=H, mask=mask)
+    print(f"Jax model total parameters: {model.total_params()}")
+    model.summary()
     model.load_torch_weights()
 
     print(f"Input shape: {x.shape}")
