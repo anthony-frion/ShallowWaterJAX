@@ -5,7 +5,7 @@ channels:
 dependencies:
   - python=3.9
   - pip
-  - jax
-  - jaxlib
-  - flax=0.10.4
-  - numpy
+  - pip:
+    - jax
+    - jaxlib
+    - numpy
