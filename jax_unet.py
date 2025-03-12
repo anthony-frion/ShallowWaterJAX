@@ -5,6 +5,8 @@ import jax.numpy as jnp
 import torch
 import os
 from pytorch_model import UNET2D
+import numpy as np
+import matplotlib.pyplot as plt
 
 DEVICE = "cpu"
 
@@ -70,39 +72,39 @@ def load_doubleconv_weights(jax_doubleconv, torch_state_dict, torch_prefix=""):
 
     if "conv1_weight" in keys_found:
         weight = torch_state_dict[keys_found["conv1_weight"]].detach().cpu().numpy()
-        jax_doubleconv.conv1.kernel = jnp.array(
+        jax_doubleconv.conv1.kernel.value = jnp.array(
             weight.transpose(2, 3, 1, 0)
         )  # OIHW -> HWIO
 
     if "conv1_bias" in keys_found:
         bias = torch_state_dict[keys_found["conv1_bias"]].detach().cpu().numpy()
-        jax_doubleconv.conv1.bias = jnp.array(bias)
+        jax_doubleconv.conv1.bias.value = jnp.array(bias)
 
     if "norm1_weight" in keys_found:
         weight = torch_state_dict[keys_found["norm1_weight"]].detach().cpu().numpy()
-        jax_doubleconv.norm1.scale = jnp.array(weight)
+        jax_doubleconv.norm1.scale.value = jnp.array(weight)
 
     if "norm1_bias" in keys_found:
         bias = torch_state_dict[keys_found["norm1_bias"]].detach().cpu().numpy()
-        jax_doubleconv.norm1.bias = jnp.array(bias)
+        jax_doubleconv.norm1.bias.value = jnp.array(bias)
 
     if "conv2_weight" in keys_found:
         weight = torch_state_dict[keys_found["conv2_weight"]].detach().cpu().numpy()
-        jax_doubleconv.conv2.kernel = jnp.array(
+        jax_doubleconv.conv2.kernel.value = jnp.array(
             weight.transpose(2, 3, 1, 0)
         )  # OIHW -> HWIO
 
     if "conv2_bias" in keys_found:
         bias = torch_state_dict[keys_found["conv2_bias"]].detach().cpu().numpy()
-        jax_doubleconv.conv2.bias = jnp.array(bias)
+        jax_doubleconv.conv2.bias.value = jnp.array(bias)
 
     if "norm2_weight" in keys_found:
         weight = torch_state_dict[keys_found["norm2_weight"]].detach().cpu().numpy()
-        jax_doubleconv.norm2.scale = jnp.array(weight)
+        jax_doubleconv.norm2.scale.value = jnp.array(weight)
 
     if "norm2_bias" in keys_found:
         bias = torch_state_dict[keys_found["norm2_bias"]].detach().cpu().numpy()
-        jax_doubleconv.norm2.bias = jnp.array(bias)
+        jax_doubleconv.norm2.bias.value = jnp.array(bias)
 
     return jax_doubleconv
 
@@ -390,7 +392,7 @@ class unet(nnx.Module):
         model = UNET2D(**network_params)
         filename = "data/model.pth.tar"
         model = load_model(model, filename).to(DEVICE)
-        print(model)
+        # print(model)
         checkpoint = get_checkpoint(filename)
         # Print total parameters of the PyTorch model
         total_params = sum(p.numel() for p in model.parameters())
@@ -414,21 +416,21 @@ class unet(nnx.Module):
         # Load dynamics and statics conv weights
         if "dynamics.weight" in model_state_dict:
             weight = model_state_dict["dynamics.weight"].detach().cpu().numpy()
-            self.dynamics.kernel = jnp.array(
+            self.dynamics.kernel.value = jnp.array(
                 weight.transpose(2, 3, 1, 0)
             )  # OIHW -> HWIO
             if "dynamics.bias" in model_state_dict:
-                self.dynamics.bias = jnp.array(
+                self.dynamics.bias.value = jnp.array(
                     model_state_dict["dynamics.bias"].detach().cpu().numpy()
                 )
 
         if "statics.weight" in model_state_dict:
             weight = model_state_dict["statics.weight"].detach().cpu().numpy()
-            self.statics.kernel = jnp.array(
+            self.statics.kernel.value = jnp.array(
                 weight.transpose(2, 3, 1, 0)
             )  # OIHW -> HWIO
             if "statics.bias" in model_state_dict:
-                self.statics.bias = jnp.array(
+                self.statics.bias.value = jnp.array(
                     model_state_dict["statics.bias"].detach().cpu().numpy()
                 )
 
@@ -436,9 +438,9 @@ class unet(nnx.Module):
         key_prefix = f"output."
         if key_prefix + "weight" in model_state_dict:
             weight = model_state_dict[key_prefix + "weight"].detach().cpu().numpy()
-            self.output.kernel = jnp.array(weight.transpose(2, 3, 1, 0))  # OIHW -> HWIO
+            self.output.kernel.value = jnp.array(weight.transpose(2, 3, 1, 0))  # OIHW -> HWIO
         if key_prefix + "bias" in model_state_dict:
-            self.output.bias = jnp.array(
+            self.output.bias.value = jnp.array(
                 model_state_dict[key_prefix + "bias"].detach().cpu().numpy()
             )
 
@@ -448,9 +450,9 @@ class unet(nnx.Module):
             if key_prefix + "weight" in model_state_dict:
                 weight = model_state_dict[key_prefix + "weight"].detach().cpu().numpy()
                 # ConvTranspose weight conversion (OIHW -> HWOI in JAX)
-                self.up[i].kernel = jnp.array(weight.transpose(2, 3, 1, 0))
+                self.up[i].kernel.value = jnp.array(weight.transpose(2, 3, 1, 0))
             if key_prefix + "bias" in model_state_dict:
-                self.up[i].bias = jnp.array(
+                self.up[i].bias.value = jnp.array(
                     model_state_dict[key_prefix + "bias"].detach().cpu().numpy()
                 )
 
@@ -486,11 +488,11 @@ def test_unet():
     mask = jnp.ones((1, height, width, 1))  # Binary mask
 
     # Pass data through model
-    output = model(x, H=H, mask=mask)
+    # output = model(x, H=H, mask=mask)
     print(f"Jax model total parameters: {model.total_params()}")
     model.summary()
     model.load_torch_weights()
-
+    output = model(x, H=H, mask=mask)
     print(f"Input shape: {x.shape}")
     print(f"Output shape: {output.shape}")
     print(f"Expected output channels: {out_channels}")
@@ -498,6 +500,112 @@ def test_unet():
     return output
 
 
+def predict_single_step():
+    print("Loading data from NPZ file...")
+    # Load the data
+    data = np.load('/home/acbekar/ShallowWaterJAX/swe_d15_1data_100x100_dt300.npz')
+    
+    # Print available arrays in the file
+    print(f"Available data arrays: {list(data.keys())}")
+    
+    # Initialize model parameters
+    num_layers = 5
+    in_channels = [3, 2]  # [dynamics_channels, statics_channels]
+    out_channels = 3
+    features = [16, 32, 64, 128, 256]
+    kernel_size = (3, 3)
+    stride = 1
+    padding = 1
+
+    # Create and load the model with PyTorch weights
+    print("Initializing model...")
+    model = unet(
+        num_layers=num_layers,
+        in_channels=in_channels,
+        out_channels=out_channels,
+        features=features,
+        kernel_size=kernel_size,
+        stride=stride,
+        padding=padding,
+    )
+    model = model.load_torch_weights()
+    print("Model loaded successfully.")
+    
+    # Extract necessary data for prediction
+    try:
+        # For dynamics input (typically height and velocities)
+        if 'u_vals' in data and 'v_vals' in data and 'z_vals' in data:
+            # Reshape data for the model input
+            u = data['u_vals'][:, 0, ...]  # First timestep
+            v = data['v_vals'][:, 0, ...]  # First timestep
+            h = data['z_vals'][:, 0, ...]  # First timestep
+            
+            # Stack to create the dynamics input with shape (1, height, width, 3)
+            dynamics_input = jnp.stack([h, u, v], axis=-1)
+        else:
+            # Alternative: try to find combined dynamics data
+            if 'dynamics' in data:
+                dynamics_input = jnp.array(data['dynamics'][0:1])
+            else:
+                raise KeyError("Could not find dynamics data (u, v, h) in the NPZ file")
+        
+        # For statics input (terrain height)
+        if 'depth_profiles' in data:
+            H = jnp.array(data['depth_profiles'])
+            H = H.reshape(*H.shape, 1)  # Add batch and channel dimensions
+        else:
+            print("Warning: No terrain height found. Using zeros.")
+            H = jnp.zeros((1, dynamics_input.shape[1], dynamics_input.shape[2], 1))
+        
+        # For mask input
+        if 'mask' in data:
+            mask = jnp.array(data['mask'])
+            mask = mask.reshape(1, *mask.shape, 1)  # Add batch and channel dimensions
+        else:
+            print("Warning: No mask found. Using ones.")
+            mask = jnp.ones((H.shape))
+        
+        print(f"Input shapes - dynamics: {dynamics_input.shape}, H: {H.shape}, mask: {mask.shape}")
+        
+        # Run prediction
+        print("Running single step prediction...")
+        prediction = model(dynamics_input, H=H, mask=mask)
+        # Visualize the prediction using contour plots
+
+        # Create figure with subplots for each channel
+        fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+
+        # Plot input channels
+        channel_names = ['Height', 'U-velocity', 'V-velocity']
+        for i in range(3):
+            ax = axes[0, i]
+            im = ax.contourf(dynamics_input[0, :, :, i], cmap='viridis')
+            ax.set_title(f'Input {channel_names[i]}')
+            fig.colorbar(im, ax=ax)
+            ax.set_aspect('equal')
+
+        # Plot prediction channels
+        for i in range(3):
+            ax = axes[1, i]
+            im = ax.contourf(prediction[0, :, :, i], cmap='viridis')
+            ax.set_title(f'Predicted {channel_names[i]}')
+            fig.colorbar(im, ax=ax)
+            ax.set_aspect('equal')
+
+        plt.tight_layout()
+        plt.savefig('prediction_contours.png')
+        plt.show()
+        print(f"Prediction shape: {prediction.shape}")
+        
+        return dynamics_input, H, mask, prediction
+        
+    except Exception as e:
+        print(f"Error during prediction: {e}")
+        raise
+
 # Run the test
 if __name__ == "__main__":
     test_unet()
+    print("\nRunning single step prediction from NPZ data...")
+    dynamics_input, H, mask, prediction = predict_single_step()
+    print("Prediction completed successfully!")
